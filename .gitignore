@@ -1,0 +1,37 @@
+# --- Dependencies ---
+# Covers all node_modules in root or subfolders (c01, c05, etc.)
+node_modules/
+jspm_packages/
+typings/
+
+# --- Docker & OS ---
+.docker/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# --- IDEs (VS Code & JetBrains) ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Python (if used in workers) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# --- Environment Variables ---
+# Never commit your secrets!
+.env
+.env.local
+.env.development.local
+
+# --- Build Outputs ---
+dist/
+build/
+out/

@@ -1,1 +1,1 @@
-# multi-container-aes-processing-pipeline
+# multi-container-aes-image-processing-pipeline

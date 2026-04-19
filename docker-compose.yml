@@ -1,0 +1,85 @@
+services:
+  # C03: Master Node (Java Subscriber + MPI Master)
+  c03_master:
+    build: ./c03_c04_worker
+    container_name: c03_master
+    depends_on:
+      c02_broker:
+        condition: service_healthy
+      c05_storage:
+        condition: service_started
+    networks:
+      - hsm_network
+    environment:
+      - RABBITMQ_HOST=c02_broker
+      - DB_URL=jdbc:mysql://c05_storage:3306/hsm_db
+    volumes:
+      - shared_data:/tmp/hsm
+
+  # C04: Worker Node (MPI Execution Node)
+  c04_worker:
+    build: ./c03_c04_worker
+    container_name: c04_worker
+    networks:
+      - hsm_network
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      - shared_data:/tmp/hsm
+
+  # C02: RabbitMQ Broker
+  c02_broker:
+    build: ./c02_broker
+    container_name: c02_broker
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - hsm_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # C01: Backend Gateway (NestJS)
+  c01_backend:
+    build: ./c01_interface/server
+    container_name: c01_backend
+    ports:
+      - "3001:3001"
+    environment:
+      - RABBITMQ_URL=amqp://c02_broker:5672
+    depends_on:
+      c02_broker:
+        condition: service_healthy
+    networks:
+      - hsm_network
+
+  # C01: Frontend (Next.js)
+  c01_frontend:
+    build: ./c01_interface/client
+    container_name: c01_frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - hsm_network
+
+  # C05: Storage (MySQL + Node.js API)
+  c05_storage:
+    build: ./c05_storage # You'll need to create this directory
+    container_name: c05_storage
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=hsm_db
+    ports:
+      - "3306:3306"
+    networks:
+      - hsm_network
+
+# Root-level declarations
+networks:
+  hsm_network:
+    driver: bridge
+
+volumes:
+  shared_data:

@@ -1,0 +1,14 @@
+{
+  "name": "c05-storage-api",
+  "version": "1.0.0",
+  "description": "Storage API for HSM Project",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.22.1",
+    "mongodb": "^6.1.0",
+    "mysql2": "^3.6.0"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
