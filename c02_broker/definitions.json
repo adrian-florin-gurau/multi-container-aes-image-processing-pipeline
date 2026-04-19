@@ -35,6 +35,13 @@
       "durable": true,
       "auto_delete": false,
       "arguments": {}
+    },
+    {
+      "name": "hsm_status_queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
     }
   ],
   "bindings": [
@@ -44,6 +51,14 @@
       "destination": "hsm_pipeline_queue",
       "destination_type": "queue",
       "routing_key": "hsm.execute.#",
+      "arguments": {}
+    },
+    {
+      "source": "hsm_topic_exchange",
+      "vhost": "/",
+      "destination": "hsm_status_queue",
+      "destination_type": "queue",
+      "routing_key": "hsm.status.#",
       "arguments": {}
     }
   ]

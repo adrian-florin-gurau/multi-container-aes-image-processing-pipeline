@@ -1,52 +1,72 @@
 services:
   # C03: Master Node (Java Subscriber + MPI Master)
   c03_master:
+    image: multi-container-aes-image-processing-pipeline-c03_master
     build: ./c03_c04_worker
     container_name: c03_master
+    ports:
+      - "38080:8080"
+    restart: on-failure # Automatically restart if it crashes
     depends_on:
       c02_broker:
         condition: service_healthy
       c05_storage:
-        condition: service_started
+        condition: service_healthy
     networks:
       - hsm_network
     environment:
       - RABBITMQ_HOST=c02_broker
-      - DB_URL=jdbc:mysql://c05_storage:3306/hsm_db
+      - DB_URL=jdbc:mysql://c05_storage:3306/hsm_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&connectTimeout=10000&socketTimeout=10000
+      - JAVA_OPTS=-Djava.util.logging.ConsoleHandler.level=ALL
     volumes:
       - shared_data:/tmp/hsm
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
 
   # C04: Worker Node (MPI Execution Node)
   c04_worker:
+    image: multi-container-aes-image-processing-pipeline-c04_worker
     build: ./c03_c04_worker
     container_name: c04_worker
+    ports:
+      - "48080:8080"
+    depends_on:
+      - c02_broker
     networks:
       - hsm_network
-    command: ["tail", "-f", "/dev/null"]
+    command: ["/usr/sbin/sshd", "-D"]
     volumes:
       - shared_data:/tmp/hsm
+    restart: always
 
   # C02: RabbitMQ Broker
   c02_broker:
+    image: multi-container-aes-image-processing-pipeline-c02_broker
     build: ./c02_broker
     container_name: c02_broker
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "28080:8080"
     networks:
       - hsm_network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # C01: Backend Gateway (NestJS)
   c01_backend:
+    image: multi-container-aes-image-processing-pipeline-c01_backend
     build: ./c01_interface/server
     container_name: c01_backend
     ports:
       - "3001:3001"
+      - "37080:8080"
     environment:
       - RABBITMQ_URL=amqp://c02_broker:5672
     depends_on:
@@ -57,24 +77,42 @@ services:
 
   # C01: Frontend (Next.js)
   c01_frontend:
+    image: multi-container-aes-image-processing-pipeline-c01_frontend
     build: ./c01_interface/client
     container_name: c01_frontend
     ports:
       - "3000:3000"
+      - "47080:8080"
     networks:
       - hsm_network
 
   # C05: Storage (MySQL + Node.js API)
   c05_storage:
-    build: ./c05_storage # You'll need to create this directory
+    image: multi-container-aes-image-processing-pipeline-c05_storage
+    build: ./c05_storage
     container_name: c05_storage
+    command: >
+      bash -c "mysqld_safe --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password & 
+      until mysqladmin ping -h localhost -u root -proot; do echo 'Waiting for MySQL...'; sleep 2; done; 
+      mysql -u root -proot < /docker-entrypoint-initdb.d/init.sql;
+      node server.js"
     environment:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=hsm_db
+      - MYSQL_ROOT_HOST=%
     ports:
+      - "8081:8081"
       - "3306:3306"
+      - "18080:8080"
     networks:
       - hsm_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - ./c05_storage/init.sql:/docker-entrypoint-initdb.d/init.sql
 
 # Root-level declarations
 networks:

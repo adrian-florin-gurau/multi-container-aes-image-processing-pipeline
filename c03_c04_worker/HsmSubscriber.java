@@ -12,8 +12,8 @@ public class HsmSubscriber {
     private final static String QUEUE_NAME = "hsm_pipeline_queue";
     private final static String RMQ_HOST = "c02_broker";
     private final static String DB_URL = "jdbc:mysql://c05_storage:3306/hsm_db";
-    private final static String DB_USER = "user"; 
-    private final static String DB_PASS = "pass";
+    private final static String DB_USER = "root"; 
+    private final static String DB_PASS = "root";
 
     public static void main(String[] argv) throws Exception {
         ConnectionFactory factory = new ConnectionFactory();
@@ -44,18 +44,21 @@ public class HsmSubscriber {
                 
                 // Note: MPI usually needs a physical file to distribute. 
                 // We use a temporary file that we delete immediately after.
-                File tempIn = new File("tmp_in_" + jobId + ".bmp");
-                File tempOut = new File("tmp_out_" + jobId + ".bmp");
+                String sharedPath = "/tmp/hsm/";
+                File tempIn = new File(sharedPath + "tmp_in_" + jobId + ".bmp");
+                File tempOut = new File(sharedPath + "tmp_out_" + jobId + ".bmp");
                 
                 Files.write(tempIn.toPath(), decodedBytes);
 
                 // 3. Launch Native MPI Process (C03 & C04)
                 System.out.println(" [>] Starting MPI Parallel Processing...");
                 ProcessBuilder pb = new ProcessBuilder(
-                    "mpirun", "--allow-run-as-root", 
-                    "--host", "localhost,c04_worker", // Distribute between master and worker
+                    "mpirun", 
+                    "--allow-run-as-root", 
+                    "--oversubscribe",
+                    "--host", "localhost,c04_worker", 
                     "-np", "4", 
-                    "./hsm_worker", 
+                    "/app/hsm_worker", 
                     tempIn.getAbsolutePath(), 
                     tempOut.getAbsolutePath(), 
                     key, 
@@ -68,8 +71,16 @@ public class HsmSubscriber {
                 if (exitCode == 0) {
                     // 4. Read the processed file and Save to C05 (MySQL)
                     byte[] processedBytes = Files.readAllBytes(tempOut.toPath());
-                    saveToDatabase(jobId, processedBytes);
-                    System.out.println(" [v] Job Complete. Saved to Database.");
+                    boolean saved = saveToDatabase(jobId, processedBytes);
+                    
+                    if (saved) {
+                        System.out.println(" [v] Job Complete. Saved to Database.");
+                        notifyStatus(jobId, channel);
+                    } else {
+                        System.err.println(" [X] Job processed but failed to save to DB.");
+                    }
+
+                    notifyStatus(jobId, channel);
                 } else {
                     System.err.println(" [X] MPI Worker Failed.");
                 }
@@ -86,18 +97,21 @@ public class HsmSubscriber {
         channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {});
     }
 
-    private static void saveToDatabase(String jobId, byte[] imageBlob) {
+    private static boolean saveToDatabase(String jobId, byte[] imageBlob) {
         String sql = "INSERT INTO processed_images (job_id, image_data, processed_at) VALUES (?, ?, NOW())";
         
         try (java.sql.Connection dbConn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
-             PreparedStatement pstmt = dbConn.prepareStatement(sql)) {
+            PreparedStatement pstmt = dbConn.prepareStatement(sql)) {
             
             pstmt.setString(1, jobId);
-            pstmt.setBytes(2, imageBlob); // This is the BLOB storage
-            pstmt.executeUpdate();
+            pstmt.setBytes(2, imageBlob);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0; // Success if at least one row was added
             
         } catch (Exception e) {
             System.err.println(" [!] DB Error: " + e.getMessage());
+            return false; // Fail silently so the main loop can handle the error
         }
     }
 
@@ -107,4 +121,19 @@ public class HsmSubscriber {
         int end = json.indexOf("\"", start);
         return json.substring(start, end);
     }
+
+    private static void notifyStatus(String jobId, com.rabbitmq.client.Channel channel) {
+    try {
+        String exchangeName = "hsm_topic_exchange";
+        String routingKey = "hsm.status.finished";
+        
+        // Match the NestJS pattern: { "pattern": "...", "data": { ... } }
+        String notification = "{\"pattern\":\"hsm.status.finished\",\"data\":{\"jobId\":\"" + jobId + "\"}}";
+        
+        channel.basicPublish(exchangeName, routingKey, null, notification.getBytes(StandardCharsets.UTF_8));
+        System.out.println(" [>] Notification sent back to C01 Gateway.");
+    } catch (Exception e) {
+        System.err.println(" [!] Failed to notify status: " + e.getMessage());
+    }
+}
 }

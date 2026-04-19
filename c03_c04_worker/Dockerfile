@@ -20,6 +20,20 @@ COPY ./lib /app/lib
 COPY HsmSubscriber.java /app/
 COPY hsm_worker.cpp /app/
 
+# Install SSH components
+RUN apt-get update && apt-get install -y openssh-server openssh-client
+
+# Configure SSH for MPI
+RUN mkdir /var/run/sshd && \
+    echo 'root:root' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    ssh-keygen -A
+
+# Generate keys so containers can talk without passwords
+RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -N "" && \
+    cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys && \
+    echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+
 # 4. Compile the Native C++ Worker
 # -fopenmp enables the OpenMP parallel loops
 # -o hsm_worker creates the binary that Java will call
@@ -34,6 +48,9 @@ RUN javac -cp ".:lib/*" HsmSubscriber.java
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
+RUN ssh-keygen -A
+
 # 7. Start the Java Subscriber
 # The classpath must include the current directory (.) and all JARs in lib
-CMD ["java", "-cp", ".:lib/*", "HsmSubscriber"]
+# 7. Use a startup script to synchronize keys
+CMD ["sh", "-c", "mkdir -p /tmp/hsm/ssh && cp /root/.ssh/id_rsa.pub /tmp/hsm/ssh/master_key.pub && sleep 2 && cat /tmp/hsm/ssh/master_key.pub >> /root/.ssh/authorized_keys && /usr/sbin/sshd && java -cp .:lib/* HsmSubscriber"]

@@ -23,15 +23,26 @@ export default function AESPipelineClient() {
   const isKeySizeValid = useMemo(() => VALID_KEY_SIZES.includes(key.length), [key]);
 
   useEffect(() => {
-    socket.on('jobFinished', (data) => {
-      if (data.jobId === currentJobId) {
+    const handleJobFinished = (data: { jobId: string }) => {
+      // We check against the jobId from the event
+      if (currentJobId && data.jobId === currentJobId) {
         console.log("Job ready! Triggering download...");
         setStatus({ type: 'success', msg: `JOB ${data.jobId} COMPLETE. Downloading...` });
-        // This forces the browser to hit the C05 endpoint and download the BLOB
-        window.location.href = `http://localhost:8080/image/${data.jobId}`;
+        
+        // Creating a temporary link to force the download
+        const downloadUrl = `http://localhost:8081/image/${data.jobId}`;
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', `processed_${data.jobId}.bmp`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
       }
-    });
-  }, [currentJobId]);
+    };
+
+    socket.on('jobFinished', handleJobFinished);
+    return () => { socket.off('jobFinished', handleJobFinished); };
+  }, [currentJobId]); // Re-binds when currentJobId changes
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
@@ -80,7 +91,11 @@ export default function AESPipelineClient() {
       setCurrentJobId(result.jobId);
       setStatus({ type: 'success', msg: `${action} Task Accepted. ID: ${result.jobId}` });
     } catch (err) {
-      setStatus({ type: 'error', msg: 'HSM Gateway unreachable or internal server error.' });
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setStatus({ type: 'error', msg: 'CRITICAL: Cannot connect to HSM Gateway (Port 3001). Is the container down?' });
+      } else {
+        setStatus({ type: 'error', msg: 'HSM Gateway unreachable or internal server error.' });
+      }
     }
   };
 

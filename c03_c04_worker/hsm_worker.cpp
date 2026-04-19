@@ -1,17 +1,17 @@
+#include <cstdint>  // <--- CRITICAL: Adds uint8_t, uint16_t, uint32_t
 #include <mpi.h>
 #include <omp.h>
 #include <iostream>
 #include <vector>
 #include <fstream>
 #include <string>
-#include <cstdint>  // <--- CRITICAL: Adds uint8_t, uint16_t, uint32_t
 
 #pragma pack(push, 1)
 struct BMPHeader {
-    uint16_t type;
-    uint32_t size;
-    uint16_t reserved1, reserved2;
-    uint32_t offset;
+    std::uint16_t type;
+    std::uint32_t size;
+    std::uint16_t reserved1, reserved2;
+    std::uint32_t offset;
 };
 #pragma pack(pop)
 
@@ -29,7 +29,6 @@ void process_chunk(std::vector<uint8_t>& data, const std::string& key) {
 }
 
 int main(int argc, char** argv) {
-    // 1. Initialize OpenMPI
     MPI_Init(&argc, &argv);
 
     int world_size, rank;
@@ -45,21 +44,24 @@ int main(int argc, char** argv) {
     std::string input_path = argv[1];
     std::string output_path = argv[2];
     std::string key = argv[3];
-    std::string action = argv[4];
-
+    // Declare these at the top level of main so they exist for the whole function
     std::vector<uint8_t> pixel_data;
+    std::vector<char> metadata; 
     BMPHeader header;
     int total_pixels = 0;
 
     // 2. Master Rank (0) reads the BMP
     if (rank == 0) {
         std::ifstream file(input_path, std::ios::binary);
+        if (!file) {
+            std::cerr << "Error opening input file" << std::endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        
         file.read(reinterpret_cast<char*>(&header), sizeof(BMPHeader));
         
-        // Read EVERYTHING between the 14-byte header and the pixel offset
-        // This preserves the DIB Header and Color Tables
         int metadata_size = header.offset - sizeof(BMPHeader);
-        std::vector<char> metadata(metadata_size);
+        metadata.resize(metadata_size); // Prepare the vector
         file.read(metadata.data(), metadata_size);
 
         pixel_data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
@@ -73,16 +75,16 @@ int main(int argc, char** argv) {
     int chunk_size = total_pixels / world_size;
     std::vector<uint8_t> local_chunk(chunk_size);
 
-    // 4. MPI Scatter: Distribute parts of the image to C03 and C04
+    // 4. MPI Scatter
     MPI_Scatter(pixel_data.data(), chunk_size, MPI_UNSIGNED_CHAR,
                 local_chunk.data(), chunk_size, MPI_UNSIGNED_CHAR,
                 0, MPI_COMM_WORLD);
 
-    // 5. OpenMP Processing: Every container processes its chunk in parallel
+    // 5. OpenMP Processing
     process_chunk(local_chunk, key);
 
-    // 6. MPI Gather: Collect processed chunks back to Master
-    std::vector<uint8_t> result_pixels_vec; // Rename to avoid shadowing if 'result_pixels' exists as an int
+    // 6. MPI Gather
+    std::vector<uint8_t> result_pixels_vec;
     if (rank == 0) result_pixels_vec.resize(total_pixels);
 
     MPI_Gather(local_chunk.data(), chunk_size, MPI_UNSIGNED_CHAR,
@@ -94,11 +96,9 @@ int main(int argc, char** argv) {
         std::ofstream out_file(output_path, std::ios::binary);
         out_file.write(reinterpret_cast<char*>(&header), sizeof(BMPHeader));
         
-        // Fill the metadata/DIB gap
-        std::vector<char> padding(header.offset - sizeof(BMPHeader), 0);
-        out_file.write(padding.data(), padding.size());
+        // Now 'metadata' is in scope!
+        out_file.write(metadata.data(), metadata.size());
 
-        // Use the vector's data() and size()
         out_file.write(reinterpret_cast<char*>(result_pixels_vec.data()), result_pixels_vec.size());
         out_file.close();
     }

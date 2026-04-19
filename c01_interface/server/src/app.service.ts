@@ -10,7 +10,7 @@ export class AppService {
     this.client = ClientProxyFactory.create({
       transport: Transport.RMQ,
       options: {
-        urls: ['amqp://c02_broker:5672'],
+        urls: ['amqp://guest:guest@c02_broker:5672'],
         queue: 'hsm_pipeline_queue',
         queueOptions: { durable: true },
         socketOptions: {

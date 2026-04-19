@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { JobNotificationController } from './job-notification.controller';
+import { HsmGateway } from './hsm.gateway';
 
 @Module({
   imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, JobNotificationController],
+  providers: [AppService, HsmGateway],
 })
 export class AppModule {}

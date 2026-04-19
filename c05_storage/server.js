@@ -4,7 +4,7 @@ const { MongoClient } = require('mongodb');
 const app = express();
 
 const mysqlConfig = {
-    host: 'localhost', // Since it's in the same container
+    host: 'c05_storage',
     user: 'root',
     password: 'root',
     database: 'hsm_db'
@@ -44,4 +44,4 @@ app.get('/metrics', async (req, res) => {
     }
 });
 
-app.listen(8080, () => console.log('C05 API running on port 8080'));
+app.listen(8081, '0.0.0.0', () => console.log('C05 API running on port 8081'));
