@@ -93,8 +93,10 @@ services:
     container_name: c05_storage
     command: >
       bash -c "mysqld_safe --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password & 
+      mongod --fork --logpath /var/log/mongodb.log --bind_ip_all && 
       until mysqladmin ping -h localhost -u root -proot; do echo 'Waiting for MySQL...'; sleep 2; done; 
       mysql -u root -proot < /docker-entrypoint-initdb.d/init.sql;
+      node snmp_collector.js &
       node server.js"
     environment:
       - MYSQL_ROOT_PASSWORD=root

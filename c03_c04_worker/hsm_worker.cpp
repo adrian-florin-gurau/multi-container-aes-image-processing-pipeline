@@ -5,6 +5,10 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <cstring>    // <--- Added for memcpy
+#include <algorithm>  // <--- Added for std::min
+#include <openssl/evp.h>
+#include <map>
 
 #pragma pack(push, 1)
 struct BMPHeader {
@@ -15,16 +19,53 @@ struct BMPHeader {
 };
 #pragma pack(pop)
 
-void process_chunk(std::vector<uint8_t>& data, const std::string& key) {
-    int n = data.size();
-    int key_len = key.length();
+const EVP_CIPHER* get_cipher(const std::string& mode) {
+    if (mode == "ECB") return EVP_aes_128_ecb();
+    if (mode == "CBC") return EVP_aes_128_cbc();
+    if (mode == "CTR") return EVP_aes_128_ctr();
+    if (mode == "CFB") return EVP_aes_128_cfb128();
+    if (mode == "OFB") return EVP_aes_128_ofb();
+    if (mode == "GCM") return EVP_aes_128_gcm();
+    return EVP_aes_128_ecb(); // Default
+}
 
-    // OpenMP: Parallelize the pixel processing across CPU cores
-    #pragma omp parallel for
-    for (int i = 0; i < n; ++i) {
-        // Simple symmetric XOR logic for demo (Assignment says AES, 
-        // but the parallel structure is what's being graded)
-        data[i] ^= key[i % key_len];
+void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const std::string& action, const std::string& mode) {
+    bool isEncrypt = (action == "ENCRYPT");
+    const EVP_CIPHER* cipher = get_cipher(mode);
+
+    unsigned char key[16] = {0};
+    memcpy(key, key_str.c_str(), std::min((size_t)16, key_str.length()));
+    unsigned char iv[16] = {0}; // In production, IV should be unique per job
+
+    // OpenMP Parallel Section
+    #pragma omp parallel
+    {
+        EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+        
+        if (isEncrypt) {
+            EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv);
+        } else {
+            EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv);
+        }
+
+        // Critical for image processing: no padding
+        EVP_CIPHER_CTX_set_padding(ctx, 0);
+
+        /* 
+           Note: For CBC/CFB/OFB to work in parallel, we treat every thread's 
+           assigned range as a fresh stream starting with the IV.
+        */
+        #pragma omp for
+        for (int i = 0; i <= (int)data.size() - 16; i += 16) {
+            int outlen;
+            if (isEncrypt) {
+                EVP_EncryptUpdate(ctx, &data[i], &outlen, &data[i], 16);
+            } else {
+                EVP_DecryptUpdate(ctx, &data[i], &outlen, &data[i], 16);
+            }
+        }
+        
+        EVP_CIPHER_CTX_free(ctx);
     }
 }
 
@@ -44,6 +85,8 @@ int main(int argc, char** argv) {
     std::string input_path = argv[1];
     std::string output_path = argv[2];
     std::string key = argv[3];
+    std::string action = argv[4];
+    std::string mode = argv[5];
     // Declare these at the top level of main so they exist for the whole function
     std::vector<uint8_t> pixel_data;
     std::vector<char> metadata; 
@@ -72,7 +115,7 @@ int main(int argc, char** argv) {
     // 3. Broadcast metadata to all MPI ranks
     MPI_Bcast(&total_pixels, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int chunk_size = total_pixels / world_size;
+    int chunk_size = (total_pixels / world_size / 16) * 16;
     std::vector<uint8_t> local_chunk(chunk_size);
 
     // 4. MPI Scatter
@@ -81,7 +124,7 @@ int main(int argc, char** argv) {
                 0, MPI_COMM_WORLD);
 
     // 5. OpenMP Processing
-    process_chunk(local_chunk, key);
+    process_chunk(local_chunk, key, action, mode);
 
     // 6. MPI Gather
     std::vector<uint8_t> result_pixels_vec;

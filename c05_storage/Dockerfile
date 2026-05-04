@@ -34,5 +34,7 @@ RUN mkdir -p /docker-entrypoint-initdb.d && cp init.sql /docker-entrypoint-initd
 # 5. Start-up script
 CMD service mysql start && \
     mongod --fork --logpath /var/log/mongodb.log --bind_ip_all && \
+    echo "Waiting for services..." && \
+    sleep 10 && \
     node snmp_collector.js & \
     node server.js

@@ -23,6 +23,7 @@ export class AppController {
     if (![16, 24, 32].includes(body.key?.length)) {
       throw new BadRequestException('Invalid AES key length.');
     }
+    if (body.mode !== 'ECB' && body.iv.length !== 16) throw new BadRequestException('Invalid IV length.');
 
     return this.appService.dispatchToPipeline(file, body);
   }

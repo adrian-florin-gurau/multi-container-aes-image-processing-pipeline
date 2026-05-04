@@ -32,15 +32,26 @@ app.get('/image/:jobId', async (req, res) => {
     }
 });
 
+const mongoClient = new MongoClient('mongodb://127.0.0.1:27017', {
+    serverSelectionTimeoutMS: 2000 
+});
+
+let db;
+
 // 2. Endpoint for SNMP/Metrics display
 app.get('/metrics', async (req, res) => {
-    const client = new MongoClient('mongodb://localhost:27017');
     try {
-        await client.connect();
-        const docs = await client.db('hsm_metrics').collection('nodes').find().toArray();
+        // If the initial connection failed, try to connect now
+        if (!db) {
+            await mongoClient.connect();
+            db = mongoClient.db('hsm_metrics');
+        }
+        
+        const docs = await db.collection('nodes').find().toArray();
         res.json(docs);
-    } finally {
-        await client.close();
+    } catch (err) {
+        console.error("Mongo Error:", err);
+        res.status(500).send("Database connection error: " + err.message);
     }
 });
 

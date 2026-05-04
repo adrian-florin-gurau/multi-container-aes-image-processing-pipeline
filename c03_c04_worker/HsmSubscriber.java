@@ -12,7 +12,7 @@ public class HsmSubscriber {
     private final static String QUEUE_NAME = "hsm_pipeline_queue";
     private final static String RMQ_HOST = "c02_broker";
     private final static String DB_URL = "jdbc:mysql://c05_storage:3306/hsm_db";
-    private final static String DB_USER = "root"; 
+    private final static String DB_USER = "root";
     private final static String DB_PASS = "root";
 
     public static void main(String[] argv) throws Exception {
@@ -35,9 +35,10 @@ public class HsmSubscriber {
                 String jobId = getJsonValue(message, "jobId");
                 String key = getJsonValue(message, "key");
                 String action = getJsonValue(message, "action");
+                String mode = getJsonValue(message, "mode");
                 String base64Data = getJsonValue(message, "fileBuffer");
 
-                System.out.println(" [x] Received Job: " + jobId + " [" + action + "]");
+                System.out.println(" [x] Received Job: " + jobId + " [" + action + " - " + mode + "]");
 
                 // 2. Decode to Temporary Byte Array
                 byte[] decodedBytes = Base64.getDecoder().decode(base64Data);
@@ -54,15 +55,15 @@ public class HsmSubscriber {
                 System.out.println(" [>] Starting MPI Parallel Processing...");
                 ProcessBuilder pb = new ProcessBuilder(
                     "mpirun", 
-                    "--allow-run-as-root", 
-                    "--oversubscribe",
-                    "--host", "localhost,c04_worker", 
-                    "-np", "4", 
+                    "--allow-run-as-root",
+                    "--host", "localhost:2,c04_worker:2", // 2 slots on Master, 2 on Worker
+                    "-np", "4",                           // Total 4 parallel processes
                     "/app/hsm_worker", 
                     tempIn.getAbsolutePath(), 
                     tempOut.getAbsolutePath(), 
                     key, 
-                    action
+                    action,
+                    mode
                 );
                 pb.inheritIO();
                 Process mpiProcess = pb.start();

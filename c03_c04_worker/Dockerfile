@@ -34,10 +34,18 @@ RUN ssh-keygen -t rsa -f /root/.ssh/id_rsa -N "" && \
     cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys && \
     echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
 
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk \
+    g++ \
+    openmpi-bin \
+    libopenmpi-dev \
+    libssl-dev \
+    && apt-get clean
+
 # 4. Compile the Native C++ Worker
 # -fopenmp enables the OpenMP parallel loops
 # -o hsm_worker creates the binary that Java will call
-RUN mpic++ -fopenmp hsm_worker.cpp -o hsm_worker
+RUN mpic++ -fopenmp hsm_worker.cpp -o hsm_worker -lcrypto
 
 # 5. Compile the Java POJO Subscriber
 # We include the lib folder in the classpath so it finds RabbitMQ and MySQL drivers
