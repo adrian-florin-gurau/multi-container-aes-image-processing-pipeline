@@ -19,53 +19,80 @@ struct BMPHeader {
 };
 #pragma pack(pop)
 
-const EVP_CIPHER* get_cipher(const std::string& mode) {
-    if (mode == "ECB") return EVP_aes_128_ecb();
-    if (mode == "CBC") return EVP_aes_128_cbc();
-    if (mode == "CTR") return EVP_aes_128_ctr();
-    if (mode == "CFB") return EVP_aes_128_cfb128();
-    if (mode == "OFB") return EVP_aes_128_ofb();
-    if (mode == "GCM") return EVP_aes_128_gcm();
-    return EVP_aes_128_ecb(); // Default
+const EVP_CIPHER* get_cipher(const std::string& mode, size_t key_len_bytes) {
+    if (mode == "ECB") {
+        if (key_len_bytes == 32) return EVP_aes_256_ecb();
+        if (key_len_bytes == 24) return EVP_aes_192_ecb();
+        return EVP_aes_128_ecb();
+    }
+    if (mode == "CBC") {
+        if (key_len_bytes == 32) return EVP_aes_256_cbc();
+        if (key_len_bytes == 24) return EVP_aes_192_cbc();
+        return EVP_aes_128_cbc();
+    }
+    if (mode == "CTR") {
+        if (key_len_bytes == 32) return EVP_aes_256_ctr();
+        if (key_len_bytes == 24) return EVP_aes_192_ctr();
+        return EVP_aes_128_ctr();
+    }
+    if (mode == "CFB") {
+        if (key_len_bytes == 32) return EVP_aes_256_cfb128();
+        if (key_len_bytes == 24) return EVP_aes_192_cfb128();
+        return EVP_aes_128_cfb128();
+    }
+    if (mode == "OFB") {
+        if (key_len_bytes == 32) return EVP_aes_256_ofb();
+        if (key_len_bytes == 24) return EVP_aes_192_ofb();
+        return EVP_aes_128_ofb();
+    }
+    if (mode == "GCM") {
+        if (key_len_bytes == 32) return EVP_aes_256_gcm();
+        if (key_len_bytes == 24) return EVP_aes_192_gcm();
+        return EVP_aes_128_gcm();
+    }
+    return EVP_aes_128_ecb(); // Default fallback
 }
 
-void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const std::string& action, const std::string& mode) {
+void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const std::string& action, const std::string& mode, const std::string& iv_str) {
     bool isEncrypt = (action == "ENCRYPT");
-    const EVP_CIPHER* cipher = get_cipher(mode);
+    size_t key_len = (key_str.length() >= 32) ? 32 : (key_str.length() >= 24 ? 24 : 16);
+    const EVP_CIPHER* cipher = get_cipher(mode, key_len);
 
-    unsigned char key[16] = {0};
-    memcpy(key, key_str.c_str(), std::min((size_t)16, key_str.length()));
-    unsigned char iv[16] = {0}; // In production, IV should be unique per job
+    std::vector<unsigned char> key_buf(key_len, 0);
+    memcpy(key_buf.data(), key_str.c_str(), std::min(key_len, key_str.length()));
+    
+    unsigned char iv[16] = {0};
+    memcpy(iv, iv_str.c_str(), std::min((size_t)16, iv_str.length()));
 
-    // OpenMP Parallel Section
+    // Calculate how many full blocks we have
+    int total_bytes = data.size();
+    int full_blocks_end = (total_bytes / 16) * 16;
+
     #pragma omp parallel
     {
         EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-        
-        if (isEncrypt) {
-            EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv);
-        } else {
-            EVP_DecryptInit_ex(ctx, cipher, NULL, key, iv);
-        }
-
-        // Critical for image processing: no padding
+        if (isEncrypt) EVP_EncryptInit_ex(ctx, cipher, NULL, key_buf.data(), iv);
+        else EVP_DecryptInit_ex(ctx, cipher, NULL, key_buf.data(), iv);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
 
-        /* 
-           Note: For CBC/CFB/OFB to work in parallel, we treat every thread's 
-           assigned range as a fresh stream starting with the IV.
-        */
+        // Step A: Process all 16-byte aligned blocks in parallel
         #pragma omp for
-        for (int i = 0; i <= (int)data.size() - 16; i += 16) {
+        for (int i = 0; i < full_blocks_end; i += 16) {
             int outlen;
-            if (isEncrypt) {
-                EVP_EncryptUpdate(ctx, &data[i], &outlen, &data[i], 16);
-            } else {
-                EVP_DecryptUpdate(ctx, &data[i], &outlen, &data[i], 16);
-            }
+            if (isEncrypt) EVP_EncryptUpdate(ctx, &data[i], &outlen, &data[i], 16);
+            else EVP_DecryptUpdate(ctx, &data[i], &outlen, &data[i], 16);
         }
-        
         EVP_CIPHER_CTX_free(ctx);
+    }
+
+    // Step B: Handle the "Remainder" (Leftover pixels)
+    // Only the last rank/thread needs to do this, or just do it sequentially at the end
+    if (total_bytes > full_blocks_end) {
+        // For ECB/CBC, we can't 'update' less than 16 bytes.
+        // Simple Fix: XOR the tail with the first 16 bytes of the key (Simple XOR cipher for tail)
+        for (int i = full_blocks_end; i < total_bytes; i++) {
+            data[i] ^= key_buf[(i - full_blocks_end) % key_len];
+        }
     }
 }
 
@@ -76,7 +103,7 @@ int main(int argc, char** argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    if (argc < 5) {
+    if (argc < 7) {
         if (rank == 0) std::cerr << "Usage: " << argv[0] << " <in.bmp> <out.bmp> <key> <action>" << std::endl;
         MPI_Finalize();
         return 1;
@@ -87,6 +114,7 @@ int main(int argc, char** argv) {
     std::string key = argv[3];
     std::string action = argv[4];
     std::string mode = argv[5];
+    std::string iv = argv[6];
     // Declare these at the top level of main so they exist for the whole function
     std::vector<uint8_t> pixel_data;
     std::vector<char> metadata; 
@@ -115,24 +143,40 @@ int main(int argc, char** argv) {
     // 3. Broadcast metadata to all MPI ranks
     MPI_Bcast(&total_pixels, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    int chunk_size = (total_pixels / world_size / 16) * 16;
-    std::vector<uint8_t> local_chunk(chunk_size);
+    // --- NEW LOGIC STARTS HERE ---
+    std::vector<int> send_counts(world_size);
+    std::vector<int> displacements(world_size);
+    int offset = 0;
 
-    // 4. MPI Scatter
-    MPI_Scatter(pixel_data.data(), chunk_size, MPI_UNSIGNED_CHAR,
-                local_chunk.data(), chunk_size, MPI_UNSIGNED_CHAR,
-                0, MPI_COMM_WORLD);
+    for (int i = 0; i < world_size; i++) {
+        // Base chunk size
+        send_counts[i] = total_pixels / world_size;
+        // Distribute remainder pixels among first few ranks
+        if (i < (total_pixels % world_size)) {
+            send_counts[i]++;
+        }
+        displacements[i] = offset;
+        offset += send_counts[i];
+    }
+
+    // Allocate exact size for THIS rank
+    std::vector<uint8_t> local_chunk(send_counts[rank]);
+
+    // 4. MPI Scatterv (Variable Scatter)
+    MPI_Scatterv(pixel_data.data(), send_counts.data(), displacements.data(), MPI_UNSIGNED_CHAR,
+                 local_chunk.data(), send_counts[rank], MPI_UNSIGNED_CHAR,
+                 0, MPI_COMM_WORLD);
 
     // 5. OpenMP Processing
-    process_chunk(local_chunk, key, action, mode);
+    process_chunk(local_chunk, key, action, mode, iv);
 
     // 6. MPI Gather
     std::vector<uint8_t> result_pixels_vec;
     if (rank == 0) result_pixels_vec.resize(total_pixels);
 
-    MPI_Gather(local_chunk.data(), chunk_size, MPI_UNSIGNED_CHAR,
-            result_pixels_vec.data(), chunk_size, MPI_UNSIGNED_CHAR,
-            0, MPI_COMM_WORLD);
+    MPI_Gatherv(local_chunk.data(), send_counts[rank], MPI_UNSIGNED_CHAR,
+                result_pixels_vec.data(), send_counts.data(), displacements.data(), MPI_UNSIGNED_CHAR,
+                0, MPI_COMM_WORLD);
 
     // 7. Master writes the final BMP
     if (rank == 0) {

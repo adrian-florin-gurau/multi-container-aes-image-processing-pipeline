@@ -37,6 +37,7 @@ public class HsmSubscriber {
                 String action = getJsonValue(message, "action");
                 String mode = getJsonValue(message, "mode");
                 String base64Data = getJsonValue(message, "fileBuffer");
+                String iv = getJsonValue(message, "iv");
 
                 System.out.println(" [x] Received Job: " + jobId + " [" + action + " - " + mode + "]");
 
@@ -63,7 +64,8 @@ public class HsmSubscriber {
                     tempOut.getAbsolutePath(), 
                     key, 
                     action,
-                    mode
+                    mode,
+                    iv
                 );
                 pb.inheritIO();
                 Process mpiProcess = pb.start();
