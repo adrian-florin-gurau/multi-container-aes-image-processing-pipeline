@@ -16,7 +16,6 @@ export default function AESPipelineClient() {
   const [action, setAction] = useState<'ENCRYPT' | 'DECRYPT'>('ENCRYPT');
   const [status, setStatus] = useState({ type: 'idle', msg: '' });
 
-  // Track the active job ID for the download trigger
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const isIvRequired = useMemo(() => mode !== 'ECB', [mode]);
@@ -24,12 +23,10 @@ export default function AESPipelineClient() {
 
   useEffect(() => {
     const handleJobFinished = (data: { jobId: string }) => {
-      // We check against the jobId from the event
       if (currentJobId && data.jobId === currentJobId) {
         console.log("Job ready! Triggering download...");
         setStatus({ type: 'success', msg: `JOB ${data.jobId} COMPLETE. Downloading...` });
         
-        // Creating a temporary link to force the download
         const downloadUrl = `http://localhost:8081/image/${data.jobId}`;
         const link = document.createElement('a');
         link.href = downloadUrl;
@@ -42,12 +39,11 @@ export default function AESPipelineClient() {
 
     socket.on('jobFinished', handleJobFinished);
     return () => { socket.off('jobFinished', handleJobFinished); };
-  }, [currentJobId]); // Re-binds when currentJobId changes
+  }, [currentJobId]);
 
   const handleSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
 
-    // 1. Image Presence & Format Validation
     if (!file) {
       return setStatus({ type: 'error', msg: 'ERROR: No file selected.' });
     }
@@ -59,7 +55,6 @@ export default function AESPipelineClient() {
       });
     }
 
-    // 2. Key Size Validation
     if (!isKeySizeValid) {
       return setStatus({ 
         type: 'error', 
@@ -67,7 +62,6 @@ export default function AESPipelineClient() {
       });
     }
 
-    // 3. IV Size Validation
     if (isIvRequired && iv.length !== 16) {
       return setStatus({ 
         type: 'error', 
@@ -103,7 +97,6 @@ export default function AESPipelineClient() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6 font-sans">
       <div className="max-w-lg w-full bg-slate-900 border border-slate-800 rounded-3xl p-10 shadow-2xl">
         
-        {/* Action Toggle */}
         <div className="flex bg-slate-800 p-1 rounded-xl mb-8">
           {(['ENCRYPT', 'DECRYPT'] as const).map((a) => (
             <button
@@ -131,7 +124,6 @@ export default function AESPipelineClient() {
         </header>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* File Upload Area */}
           <div className={`group relative border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer ${
             status.type === 'error' && (!file || !file.name.toLowerCase().endsWith('.bmp'))
               ? 'border-red-500 bg-red-500/5' 
@@ -152,7 +144,6 @@ export default function AESPipelineClient() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Cipher Key */}
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex justify-between">
                 <span>Cipher Key</span>
@@ -167,7 +158,6 @@ export default function AESPipelineClient() {
               />
             </div>
 
-            {/* IV Field */}
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-widest flex justify-between">
                 <span className={isIvRequired ? 'text-slate-500' : 'text-slate-700'}>IV {!isIvRequired && '(Disabled)'}</span>
@@ -185,7 +175,6 @@ export default function AESPipelineClient() {
             </div>
           </div>
 
-          {/* Mode Selector */}
           <div className="space-y-3">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Algorithm Mode</label>
             <div className="grid grid-cols-3 gap-2 w-full">

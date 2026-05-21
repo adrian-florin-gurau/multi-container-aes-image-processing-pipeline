@@ -1,12 +1,12 @@
-#include <cstdint>  // <--- CRITICAL: Adds uint8_t, uint16_t, uint32_t
+#include <cstdint>
 #include <mpi.h>
 #include <omp.h>
 #include <iostream>
 #include <vector>
 #include <fstream>
 #include <string>
-#include <cstring>    // <--- Added for memcpy
-#include <algorithm>  // <--- Added for std::min
+#include <cstring>
+#include <algorithm>
 #include <openssl/evp.h>
 #include <map>
 
@@ -50,7 +50,7 @@ const EVP_CIPHER* get_cipher(const std::string& mode, size_t key_len_bytes) {
         if (key_len_bytes == 24) return EVP_aes_192_gcm();
         return EVP_aes_128_gcm();
     }
-    return EVP_aes_128_ecb(); // Default fallback
+    return EVP_aes_128_ecb();
 }
 
 void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const std::string& action, const std::string& mode, const std::string& iv_str) {
@@ -64,7 +64,6 @@ void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const
     unsigned char iv[16] = {0};
     memcpy(iv, iv_str.c_str(), std::min((size_t)16, iv_str.length()));
 
-    // Calculate how many full blocks we have
     int total_bytes = data.size();
     int full_blocks_end = (total_bytes / 16) * 16;
 
@@ -75,7 +74,6 @@ void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const
         else EVP_DecryptInit_ex(ctx, cipher, NULL, key_buf.data(), iv);
         EVP_CIPHER_CTX_set_padding(ctx, 0);
 
-        // Step A: Process all 16-byte aligned blocks in parallel
         #pragma omp for
         for (int i = 0; i < full_blocks_end; i += 16) {
             int outlen;
@@ -85,11 +83,7 @@ void process_chunk(std::vector<uint8_t>& data, const std::string& key_str, const
         EVP_CIPHER_CTX_free(ctx);
     }
 
-    // Step B: Handle the "Remainder" (Leftover pixels)
-    // Only the last rank/thread needs to do this, or just do it sequentially at the end
     if (total_bytes > full_blocks_end) {
-        // For ECB/CBC, we can't 'update' less than 16 bytes.
-        // Simple Fix: XOR the tail with the first 16 bytes of the key (Simple XOR cipher for tail)
         for (int i = full_blocks_end; i < total_bytes; i++) {
             data[i] ^= key_buf[(i - full_blocks_end) % key_len];
         }
@@ -115,13 +109,11 @@ int main(int argc, char** argv) {
     std::string action = argv[4];
     std::string mode = argv[5];
     std::string iv = argv[6];
-    // Declare these at the top level of main so they exist for the whole function
     std::vector<uint8_t> pixel_data;
     std::vector<char> metadata; 
     BMPHeader header;
     int total_pixels = 0;
 
-    // 2. Master Rank (0) reads the BMP
     if (rank == 0) {
         std::ifstream file(input_path, std::ios::binary);
         if (!file) {
@@ -132,7 +124,7 @@ int main(int argc, char** argv) {
         file.read(reinterpret_cast<char*>(&header), sizeof(BMPHeader));
         
         int metadata_size = header.offset - sizeof(BMPHeader);
-        metadata.resize(metadata_size); // Prepare the vector
+        metadata.resize(metadata_size);
         file.read(metadata.data(), metadata_size);
 
         pixel_data.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
@@ -140,18 +132,14 @@ int main(int argc, char** argv) {
         file.close();
     }
 
-    // 3. Broadcast metadata to all MPI ranks
     MPI_Bcast(&total_pixels, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-    // --- NEW LOGIC STARTS HERE ---
     std::vector<int> send_counts(world_size);
     std::vector<int> displacements(world_size);
     int offset = 0;
 
     for (int i = 0; i < world_size; i++) {
-        // Base chunk size
         send_counts[i] = total_pixels / world_size;
-        // Distribute remainder pixels among first few ranks
         if (i < (total_pixels % world_size)) {
             send_counts[i]++;
         }
@@ -159,18 +147,14 @@ int main(int argc, char** argv) {
         offset += send_counts[i];
     }
 
-    // Allocate exact size for THIS rank
     std::vector<uint8_t> local_chunk(send_counts[rank]);
 
-    // 4. MPI Scatterv (Variable Scatter)
     MPI_Scatterv(pixel_data.data(), send_counts.data(), displacements.data(), MPI_UNSIGNED_CHAR,
                  local_chunk.data(), send_counts[rank], MPI_UNSIGNED_CHAR,
                  0, MPI_COMM_WORLD);
 
-    // 5. OpenMP Processing
     process_chunk(local_chunk, key, action, mode, iv);
 
-    // 6. MPI Gather
     std::vector<uint8_t> result_pixels_vec;
     if (rank == 0) result_pixels_vec.resize(total_pixels);
 
@@ -178,12 +162,10 @@ int main(int argc, char** argv) {
                 result_pixels_vec.data(), send_counts.data(), displacements.data(), MPI_UNSIGNED_CHAR,
                 0, MPI_COMM_WORLD);
 
-    // 7. Master writes the final BMP
     if (rank == 0) {
         std::ofstream out_file(output_path, std::ios::binary);
         out_file.write(reinterpret_cast<char*>(&header), sizeof(BMPHeader));
         
-        // Now 'metadata' is in scope!
         out_file.write(metadata.data(), metadata.size());
 
         out_file.write(reinterpret_cast<char*>(result_pixels_vec.data()), result_pixels_vec.size());

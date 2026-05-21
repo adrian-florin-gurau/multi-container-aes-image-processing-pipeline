@@ -15,7 +15,6 @@ export class HsmGateway implements OnGatewayInit {
     console.log('WebSocket Gateway Initialized');
   }
 
-  // We'll call this from a Controller instead of using @MessagePattern here
   sendFinishedNotification(jobId: string) {
     console.log(`Pushing 'jobFinished' for ${jobId} to client`);
     this.server.emit('jobFinished', { jobId });

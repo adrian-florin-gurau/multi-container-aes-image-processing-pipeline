@@ -1,12 +1,11 @@
 services:
-  # C03: Master Node (Java Subscriber + MPI Master)
   c03_master:
     image: multi-container-aes-image-processing-pipeline-c03_master
     build: ./c03_c04_worker
     container_name: c03_master
     ports:
       - "38080:8080"
-    restart: on-failure # Automatically restart if it crashes
+    restart: on-failure
     depends_on:
       c02_broker:
         condition: service_healthy
@@ -26,7 +25,6 @@ services:
         delay: 5s
         max_attempts: 3
 
-  # C04: Worker Node (MPI Execution Node)
   c04_worker:
     image: multi-container-aes-image-processing-pipeline-c04_worker
     build: ./c03_c04_worker
@@ -37,12 +35,11 @@ services:
       - c02_broker
     networks:
       - hsm_network
-    command: ["/usr/sbin/sshd", "-D"]
+    command: ["sh", "-c", "service snmpd start && /usr/sbin/sshd -D"]
     volumes:
       - shared_data:/tmp/hsm
     restart: always
 
-  # C02: RabbitMQ Broker
   c02_broker:
     image: multi-container-aes-image-processing-pipeline-c02_broker
     build: ./c02_broker
@@ -59,7 +56,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # C01: Backend Gateway (NestJS)
   c01_backend:
     image: multi-container-aes-image-processing-pipeline-c01_backend
     build: ./c01_interface/server
@@ -75,7 +71,6 @@ services:
     networks:
       - hsm_network
 
-  # C01: Frontend (Next.js)
   c01_frontend:
     image: multi-container-aes-image-processing-pipeline-c01_frontend
     build: ./c01_interface/client
@@ -86,13 +81,13 @@ services:
     networks:
       - hsm_network
 
-  # C05: Storage (MySQL + Node.js API)
   c05_storage:
     image: multi-container-aes-image-processing-pipeline-c05_storage
     build: ./c05_storage
     container_name: c05_storage
     command: >
-      bash -c "mysqld_safe --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password & 
+      bash -c "service snmpd start &&
+      mysqld_safe --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password & 
       mongod --fork --logpath /var/log/mongodb.log --bind_ip_all && 
       until mysqladmin ping -h localhost -u root -proot; do echo 'Waiting for MySQL...'; sleep 2; done; 
       mysql -u root -proot < /docker-entrypoint-initdb.d/init.sql;
@@ -102,6 +97,7 @@ services:
       - MYSQL_ROOT_PASSWORD=root
       - MYSQL_DATABASE=hsm_db
       - MYSQL_ROOT_HOST=%
+      - SNMP_TARGETS=c01_frontend,c01_backend,c02_broker,c03_master,c04_worker,c05_storage
     ports:
       - "8081:8081"
       - "3306:3306"
@@ -116,7 +112,6 @@ services:
     volumes:
       - ./c05_storage/init.sql:/docker-entrypoint-initdb.d/init.sql
 
-# Root-level declarations
 networks:
   hsm_network:
     driver: bridge

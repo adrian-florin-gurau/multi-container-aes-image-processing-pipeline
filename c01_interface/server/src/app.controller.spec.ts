@@ -7,14 +7,12 @@ describe('AppController', () => {
   let controller: AppController;
   let service: AppService;
 
-  // 1. Create a Mock for the AppService
   const mockAppService = {
     dispatchToPipeline: jest.fn().mockImplementation((file, body) => {
       return { jobId: 'test-job-uuid', status: 'QUEUED' };
     }),
   };
 
-  // 2. Helper to create a dummy Multer file that satisfies the TS Interface
   const createMockFile = (name = 'test.bmp'): Express.Multer.File => ({
     fieldname: 'image',
     originalname: name,
@@ -52,7 +50,6 @@ describe('AppController', () => {
     it('should throw BadRequestException if file is missing', async () => {
       const body = { key: '1234567890123456', mode: 'ECB', action: 'ENCRYPT' };
       
-      // We pass null as any to bypass TS checks but verify runtime logic
       await expect(controller.handleAESRequest(null as any, body))
         .rejects.toThrow(BadRequestException);
     });
@@ -68,7 +65,7 @@ describe('AppController', () => {
     it('should successfully delegate to AppService when inputs are valid', async () => {
       const mockFile = createMockFile();
       const body = { 
-        key: '1234567890123456', // 16 bytes
+        key: '1234567890123456',
         mode: 'CBC', 
         action: 'ENCRYPT',
         iv: 'initialvector123'
@@ -76,10 +73,8 @@ describe('AppController', () => {
 
       const result = await controller.handleAESRequest(mockFile, body);
 
-      // Verify the service was called correctly
       expect(service.dispatchToPipeline).toHaveBeenCalledWith(mockFile, body);
       
-      // Verify the controller returns what the service provides
       expect(result).toEqual({ 
         jobId: 'test-job-uuid', 
         status: 'QUEUED' 
@@ -89,7 +84,7 @@ describe('AppController', () => {
     it('should handle different valid AES key sizes (e.g., 32 bytes)', async () => {
       const mockFile = createMockFile();
       const body = { 
-        key: '12345678901234567890123456789012', // 32 bytes
+        key: '12345678901234567890123456789012',
         mode: 'CTR', 
         action: 'ENCRYPT' 
       };

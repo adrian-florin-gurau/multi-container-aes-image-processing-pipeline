@@ -6,7 +6,8 @@
   "dependencies": {
     "express": "^4.22.1",
     "mongodb": "^6.1.0",
-    "mysql2": "^3.6.0"
+    "mysql2": "^3.6.0",
+    "net-snmp": "^3.26.3"
   },
   "scripts": {
     "start": "node server.js"

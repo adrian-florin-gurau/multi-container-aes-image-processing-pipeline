@@ -1,0 +1,270 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="aes-pipeline-clean" name="AES Pipeline Architecture">
+    <mxGraphModel dx="2565" dy="1438" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=30;fontStyle=1;align=center;verticalAlign=middle;fontColor=#ffffff;" value="&lt;font style=&quot;color: light-dark(rgb(0, 0, 0), rgb(255, 0, 0));&quot;&gt;Multi-Container AES BMP Encryption / Decryption Pipeline&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="1260" x="510" y="35" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-client" parent="1" style="swimlane;html=1;rounded=1;startSize=34;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;horizontal=1;gradientColor=#7ea6e0;" value="Client + C01" vertex="1">
+          <mxGeometry height="300" width="880" x="50" y="120" as="geometry">
+            <mxRectangle height="34" width="120" x="10" y="100" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step2" parent="lane-client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;gradientColor=#7ea6e0;" value="2. Multipart REST upload" vertex="1">
+          <mxGeometry height="34" width="180" x="520" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="browser" parent="lane-client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f5f5f5;strokeColor=#666666;fontSize=16;fontStyle=1;spacing=12;gradientColor=#b3b3b3;" value="User Browser&lt;div&gt;(can be outside)&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="190" x="20" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="frontend" parent="lane-client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;spacing=12;gradientColor=#7ea6e0;" value="C01 Frontend&lt;br&gt;Next.js / React&lt;br&gt;BMP upload form&lt;br&gt;AES action, mode, key, IV&lt;br&gt;Socket.IO listener&lt;div&gt;&lt;span style=&quot;font-size: 16px; font-weight: 700;&quot;&gt;localhost:3000&lt;/span&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="180" width="160" x="350" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="lane-client" source="browser" style="endArrow=block;html=1;rounded=0;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#f5f5f5;gradientColor=#b3b3b3;strokeColor=#666666;" target="frontend" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="lane-client" source="frontend" style="endArrow=block;html=1;rounded=0;strokeColor=#6c8ebf;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#dae8fc;gradientColor=#7ea6e0;" target="backend" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="backend" parent="lane-client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=15;spacing=12;gradientColor=#7ea6e0;" value="C01 Backend&lt;br&gt;NestJS REST API&lt;br&gt;POST /process&lt;br&gt;RabbitMQ topic publisher&lt;br&gt;Socket.IO gateway&lt;div&gt;&lt;b&gt;localhost:3001&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="180" width="150" x="710" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="lane-client" source="backend" style="endArrow=block;html=1;rounded=0;strokeColor=#6c8ebf;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#dae8fc;gradientColor=#7ea6e0;" target="frontend" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="780" y="340" />
+              <mxPoint x="440" y="340" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-13" parent="lane-client" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;gradientColor=#b3b3b3;" value="1. Request" vertex="1">
+          <mxGeometry height="34" width="120" x="220" y="133" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-messaging" parent="1" style="swimlane;html=1;rounded=1;startSize=34;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;horizontal=1;gradientColor=#97d077;" value="C02 Messaging" vertex="1">
+          <mxGeometry height="300" width="420" x="980" y="120" as="geometry">
+            <mxRectangle height="34" width="140" x="940" y="120" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step3" parent="lane-messaging" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;gradientColor=#7ea6e0;" value="3. Publish hsm.execute.aes" vertex="1">
+          <mxGeometry height="34" width="120" x="-60" y="133" as="geometry" />
+        </mxCell>
+        <mxCell id="broker" parent="lane-messaging" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=15;spacing=12;gradientColor=#97d077;" value="C02 RabbitMQ Broker&lt;br&gt;hsm_topic_exchange&lt;br&gt;type: topic&lt;br&gt;hsm_pipeline_queue&lt;br&gt;hsm_status_queue&lt;div&gt;&lt;b&gt;localhost:5672&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;localhost:15672&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="180" width="280" x="70" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="lane-compute" parent="1" style="swimlane;html=1;rounded=1;startSize=34;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;fontSize=14;horizontal=1;gradientColor=#ea6b66;" value="C03 + C04 Compute" vertex="1">
+          <mxGeometry height="560" width="700" x="1450" y="120" as="geometry">
+            <mxRectangle height="34" width="170" x="1410" y="120" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step5" parent="lane-compute" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;gradientColor=#ea6b66;" value="5. Launch native MPI job" vertex="1">
+          <mxGeometry height="34" width="170" x="176" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="native" parent="lane-compute" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=15;spacing=12;gradientColor=#ea6b66;" value="Native AES Worker&#xa;C++ / OpenSSL EVP&#xa;OpenMPI Scatterv / Gatherv&#xa;OpenMP local block loop&#xa;BMP header preserved" vertex="1">
+          <mxGeometry height="170" width="300" x="210" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="step6" parent="lane-compute" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;gradientColor=#ea6b66;" value="6. Run MPI ranks over SSH" vertex="1">
+          <mxGeometry height="34" width="176" x="374" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="master" parent="lane-compute" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=15;spacing=12;gradientColor=#ea6b66;" value="C03 Master Worker&#xa;Java POJO subscriber&#xa;Consumes hsm_pipeline_queue&#xa;Writes temp BMP&#xa;Launches mpirun&#xa;Stores final BLOB" vertex="1">
+          <mxGeometry height="185" width="270" x="50" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="lane-compute" source="master" style="endArrow=block;html=1;rounded=0;strokeColor=#b85450;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;gradientColor=#ea6b66;" target="native" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="185" y="315" />
+              <mxPoint x="350" y="315" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-7" parent="lane-compute" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;gradientColor=#ea6b66;" value="7. Send" vertex="1">
+          <mxGeometry height="25" width="67.5" x="326.25" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="worker" parent="lane-compute" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=15;spacing=12;gradientColor=#ea6b66;" value="C04 (C03) MPI Worker Node&lt;br&gt;SSH daemon&lt;br&gt;OpenMPI rank host&lt;br&gt;OpenMP local threads" vertex="1">
+          <mxGeometry height="185" width="260" x="400" y="85" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="lane-compute" source="native" style="endArrow=block;html=1;rounded=0;strokeColor=#b85450;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;gradientColor=#ea6b66;" target="worker" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="370" y="315" />
+              <mxPoint x="530" y="315" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-3" edge="1" parent="lane-compute" source="worker" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;fillColor=#f8cecc;gradientColor=#ea6b66;strokeColor=#b85450;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="master">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="380" y="178" />
+              <mxPoint x="350" y="178" />
+            </Array>
+            <mxPoint x="320" y="160" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lane-storage" parent="1" style="swimlane;html=1;rounded=1;startSize=34;fillColor=#ffcd28;strokeColor=#d79b00;fontStyle=1;fontSize=14;horizontal=1;gradientColor=#ffa500;" value="C05 Storage + Web Access" vertex="1">
+          <mxGeometry height="360" width="1150" x="210" y="720" as="geometry">
+            <mxRectangle height="34" width="210" x="170" y="720" as="alternateBounds" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="step12" parent="lane-storage" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=13;fontStyle=1;gradientColor=#ffa500;" value="17. Mongo metrics" vertex="1">
+          <mxGeometry height="34" width="130" x="720" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="step11" parent="lane-storage" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=13;fontStyle=1;gradientColor=#ffa500;" value="13. MySQL image query" vertex="1">
+          <mxGeometry height="34" width="160" x="349" y="125" as="geometry" />
+        </mxCell>
+        <mxCell id="mongo" parent="lane-storage" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=14;spacing=10;gradientColor=#ffa500;" value="MongoDB&#xa;hsm_metrics&#xa;nodes collection&#xa;OS / CPU / RAM samples" vertex="1">
+          <mxGeometry height="170" width="190" x="860" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="mysql" parent="lane-storage" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=14;spacing=10;gradientColor=#ffa500;" value="MySQL&#xa;hsm_db&#xa;processed_images&#xa;image_data LONGBLOB" vertex="1">
+          <mxGeometry height="170" width="190" x="520" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="lane-storage" style="endArrow=block;html=1;rounded=0;strokeColor=#d79b00;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#ffcd28;gradientColor=#ffa500;" target="mongo" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="210" y="250" />
+              <mxPoint x="210" y="290" />
+              <mxPoint x="730" y="290" />
+              <mxPoint x="730" y="185" />
+            </Array>
+            <mxPoint x="340" y="250" as="sourcePoint" />
+            <mxPoint x="860" y="250" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-11" parent="lane-storage" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=13;fontStyle=1;gradientColor=#ffa500;" value="14. MySQL image send" vertex="1">
+          <mxGeometry height="34" width="160" x="350" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="step1" parent="lane-storage" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;fontStyle=1;gradientColor=#b3b3b3;" value="16. Request" vertex="1">
+          <mxGeometry height="34" width="120" x="-60" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="storageapi" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=15;spacing=12;gradientColor=#ffa500;" value="C05 Express API&lt;br&gt;GET /image/{jobId}&lt;br&gt;GET /metrics&lt;br&gt;Downloads processed BMP&lt;br&gt;Displays collected metrics&lt;div&gt;&lt;b&gt;localhost:8081&lt;/b&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="170" width="270" x="280" y="820" as="geometry" />
+        </mxCell>
+        <mxCell id="base" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=8;fillColor=#e6d0de;strokeColor=#996185;fontSize=16;fontStyle=1;gradientColor=light-dark(#D5739D,#FF0000);" value="All custom Docker images use base image: critoma/amd64_u24_noble_ism_security" vertex="1">
+          <mxGeometry height="60" width="1160" x="560" y="1135" as="geometry" />
+        </mxCell>
+        <mxCell id="step4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;gradientColor=#97d077;" value="4. Consume hsm_pipeline_queue" vertex="1">
+          <mxGeometry height="34" width="150" x="1340" y="253" as="geometry" />
+        </mxCell>
+        <mxCell id="step7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;gradientColor=#ea6b66;" value="8. Insert processed BMP BLOB through JDBC" vertex="1">
+          <mxGeometry height="34" width="310" x="920" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="step8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;gradientColor=#ea6b66;" value="9. Publish hsm.status.finished" vertex="1">
+          <mxGeometry height="34" width="220" x="1220" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="step9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;gradientColor=#7ea6e0;" value="11. Socket.IO jobFinished" vertex="1">
+          <mxGeometry height="34" width="190" x="560" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="step10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;gradientColor=#7ea6e0;" value="12. Download /image/{jobId}" vertex="1">
+          <mxGeometry height="34" width="120" x="355" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="backend" style="endArrow=block;html=1;rounded=0;strokeColor=#6c8ebf;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#dae8fc;gradientColor=#7ea6e0;" target="broker" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1010" y="295" />
+              <mxPoint x="1010" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="broker" style="endArrow=block;html=1;rounded=0;strokeColor=#82b366;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;gradientColor=#97d077;" target="master" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1420" y="295" />
+              <mxPoint x="1420" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="master" style="endArrow=block;html=1;rounded=0;strokeColor=#b85450;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fillColor=#f8cecc;gradientColor=#ea6b66;" target="mysql" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1620" y="580" />
+              <mxPoint x="920" y="580" />
+              <mxPoint x="920" y="770" />
+              <mxPoint x="825" y="770" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="master" style="endArrow=block;html=1;rounded=0;strokeColor=#b85450;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#f8cecc;gradientColor=#ea6b66;" target="broker" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1610" y="460" />
+              <mxPoint x="1200" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="broker" style="endArrow=block;html=1;rounded=0;strokeColor=#82b366;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#d5e8d4;gradientColor=#97d077;" target="backend" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1190" y="460" />
+              <mxPoint x="840" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="frontend" style="endArrow=block;html=1;rounded=0;strokeColor=#6c8ebf;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#dae8fc;gradientColor=#7ea6e0;" target="storageapi" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="480" y="560" />
+              <mxPoint x="415" y="560" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="storageapi" style="endArrow=block;html=1;rounded=0;strokeColor=#d79b00;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#ffcd28;gradientColor=#ffa500;" target="mysql" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="650" y="890" />
+              <mxPoint x="650" y="890" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="storageapi" style="endArrow=block;html=1;rounded=0;strokeColor=#d79b00;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;entryX=0.435;entryY=0.992;entryDx=0;entryDy=0;entryPerimeter=0;fillColor=#ffcd28;gradientColor=#ffa500;" target="frontend" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="160" y="890" />
+              <mxPoint x="160" y="480" />
+              <mxPoint x="470" y="480" />
+              <mxPoint x="470" y="400" />
+            </Array>
+            <mxPoint x="466" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;gradientColor=#97d077;" value="10. Send notification" vertex="1">
+          <mxGeometry height="34" width="220" x="900" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=13;fontStyle=1;gradientColor=#ffa500;" value="15. Render image" vertex="1">
+          <mxGeometry height="34" width="115" x="165" y="486" as="geometry" />
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-10" edge="1" parent="1" source="mysql" style="endArrow=block;html=1;rounded=0;strokeColor=#d79b00;strokeWidth=2;edgeStyle=orthogonalEdgeStyle;fillColor=#ffcd28;gradientColor=#ffa500;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1.001;entryY=0.591;entryDx=0;entryDy=0;entryPerimeter=0;" target="storageapi" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="730" y="920" />
+              <mxPoint x="550" y="920" />
+            </Array>
+            <mxPoint x="550" y="910" as="sourcePoint" />
+            <mxPoint x="550" y="910" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-12" edge="1" parent="1" source="browser" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="165" y="460" />
+              <mxPoint x="140" y="460" />
+              <mxPoint x="140" y="920" />
+              <mxPoint x="280" y="920" />
+            </Array>
+            <mxPoint x="280" y="920" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-14" edge="1" parent="1" source="mongo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fillColor=#ffcd28;gradientColor=#ffa500;strokeColor=#d79b00;strokeWidth=2;" target="browser">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1165" y="1030" />
+              <mxPoint x="40" y="1030" />
+              <mxPoint x="40" y="295" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="CBFKE_C9Z2Fmy9mNvLRa-15" parent="1" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#ffcd28;strokeColor=#d79b00;fontSize=13;fontStyle=1;gradientColor=#ffa500;" value="18. Response" vertex="1">
+          <mxGeometry height="34" width="120" x="40" y="1040" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

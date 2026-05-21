@@ -5,7 +5,6 @@ import { Transport } from '@nestjs/microservices';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Critical for the Next.js Client to talk to this API
   app.enableCors({
     origin: 'http://localhost:3000',
     methods: ['GET', 'POST'],
@@ -16,7 +15,7 @@ async function bootstrap() {
     transport: Transport.RMQ,
     options: {
       urls: ['amqp://guest:guest@c02_broker:5672'],
-      queue: 'hsm_status_queue', // Java will send 'finished' messages here
+      queue: 'hsm_status_queue',
     },
   });
 

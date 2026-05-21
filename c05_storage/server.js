@@ -10,7 +10,6 @@ const mysqlConfig = {
     database: 'hsm_db'
 };
 
-// 1. Endpoint for BMP picture rendering
 app.get('/image/:jobId', async (req, res) => {
     try {
         const connection = await mysql.createConnection(mysqlConfig);
@@ -20,7 +19,6 @@ app.get('/image/:jobId', async (req, res) => {
         );
 
         if (rows.length > 0) {
-            // Force download behavior
             res.setHeader('Content-Disposition', `attachment; filename="result_${req.params.jobId}.bmp"`);
             res.setHeader('Content-Type', 'image/bmp');
             res.send(rows[0].image_data);
@@ -38,10 +36,8 @@ const mongoClient = new MongoClient('mongodb://127.0.0.1:27017', {
 
 let db;
 
-// 2. Endpoint for SNMP/Metrics display
 app.get('/metrics', async (req, res) => {
     try {
-        // If the initial connection failed, try to connect now
         if (!db) {
             await mongoClient.connect();
             db = mongoClient.db('hsm_metrics');
